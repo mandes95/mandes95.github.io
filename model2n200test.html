@@ -11,7 +11,7 @@
         <script>
 
            var data = {
-                labels: ["Training Set 80%", "Training Set 85%", "Training Set 90%"],
+                labels: ["Test Set 20%", "Test Set 15%", "Test Set 10%"],
                 datasets: [
                     {
                         label: "FPA-SVR",
@@ -21,7 +21,7 @@
                         borderWidth: 1,
                         hoverBackgroundColor : 'rgba(54, 162, 235, 1)',
                         hoverBorderWidth : 3,
-                        data: [0.51144,0.53610,0.53768]
+                        data: [0.71631,0.78245,0.72479]
                     },
                     {
                         label: "SVR Grid Search",
@@ -29,7 +29,7 @@
                         borderColor:'rgba(255,99,132,1)',
                         hoverBackgroundColor :'rgba(255, 99, 132, 0.3)',
                         borderWidth: 1,
-                        data: [0.50104,0.55140,0.54753]
+                        data: [0.71369,0.79958,0.71651]
                     },
                     {
                         label: "AAR",
@@ -37,7 +37,7 @@
                         borderColor: 'rgba(255, 206, 86, 1)',
                         hoverBackgroundColor : 'rgba(255, 206, 86, 0.3)',
                         borderWidth: 1,
-                        data: [0.51235,0.51481,0.52832]
+                        data: [0.63676,0.70630,0.65262]
                     },
                     {
                         label: "NN",
@@ -45,7 +45,7 @@
                         borderColor: 'rgba(10, 120, 30, 1)',
                         hoverBackgroundColor : 'rgba(10, 120, 30, 0.3)',
                         borderWidth: 1,
-                        data: [0.47257,0.47920,0.49274]
+                        data: [0.69222,0.77622,0.66524]
                     }
                 ]
             };
@@ -59,7 +59,7 @@
                         ticks: {
                             min: 0.4,    // minimum will be 0, unless there is a lower value.
                             // OR //
-                            max: 0.8  // minimum value will be 0.
+                            max: 0.8   // minimum value will be 0.
                         }
                     }]
                 },
