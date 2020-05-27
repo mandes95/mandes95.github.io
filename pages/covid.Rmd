@@ -1,0 +1,144 @@
+---
+title: "Analisis Data Covid-19 di Indonesia"
+author: "Amanda Pratama Putra"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    highlight: tango
+    number_sections: yes
+    theme: lumen
+    toc: yes
+---
+
+# Intro
+
+Pada tulisan kali ini, saya coba membuat analisis sederhana tentang data Covid-19 di Indonesia, serta perbandingannya dengan kondisi data di negara lain. Sumber data yang saya gunakan adalah dataset yang disediakan oleh library "COVID19" pada bahasa pemrograman R. Contoh data yang tersedia adalah sebagai berikut:
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(highcharter)
+library(rio)
+
+data_covid = import("data-1.csv")
+data_covid %>% filter(administrative_area_level_1=="Indonesia") %>% head(10)
+```
+
+# Jumlah Kasus Harian di Indonesia
+
+Hal pertama yang jadi fokus perhatian saya adalah data jumlah kasus harian covid 19. Untuk memperoleh data tersebut perlu dilakukan pengolahan data terlebih dahulu dengan merubah data kumulatif menjadi data harian. Setelah proses pengolahan, trend jumlah kasus harian ditampilkan kedalam bentuk barplot interaktif menggunakan library "highcharter".
+
+```{r message=FALSE, warning=FALSE}
+daily_cases = data_covid %>% 
+  arrange(administrative_area_level_1,date) %>% 
+  group_by(administrative_area_level_1) %>% 
+  transmute(
+    date = date,
+    test = tests-lag(tests),
+    confirmed = confirmed-lag(confirmed),
+    recovered = recovered-lag(recovered),
+    deaths = deaths-lag(deaths)
+  ) %>% 
+  arrange(
+    administrative_area_level_1,date
+  )
+
+daily_cases_indo = daily_cases %>% filter(administrative_area_level_1=="Indonesia")
+
+highchart() %>% 
+  hc_title(text="Grafik 1. Jumlah Kasus Harian Covid-19 di Indonesia") %>% 
+  hc_xAxis(categories = daily_cases_indo$date,type='date') %>% 
+  hc_add_series(name = "recovered", data = (daily_cases_indo$recovered)) %>%
+  hc_add_series(name = "deaths", data = (daily_cases_indo$deaths)) %>%
+  hc_add_series(name = "newcases", data = (daily_cases_indo$confirmed)) %>%
+  hc_chart(type = "column") %>%
+  hc_plotOptions(series = list(stacking = "normal")) %>%
+  hc_legend(reversed = TRUE) %>% 
+  hc_add_theme(hc_theme_google()) 
+
+```
+
+# Total Pasien Dirawat/Isolasi Mandiri
+
+Kalau dilihat dari grafik 1, tren jumlah kasus harian covid19 di Indonesia sih belum ada landai-landainya. Trendnya naik terus seiring periode waktu. Dengan kondisi seperti itu, maka jumlah pasien baik yang dirawat di rumah sakit maupun dirawat secara mandiri terus bertambah dari hari ke hari. Trend pertambahan jumlah kasus tersebut adalah sebagai berikut:
+```{r}
+daily_cases_indo2 = daily_cases_indo %>% 
+  mutate(
+    patient = lag(confirmed)-lag(deaths)-lag(recovered),
+    patient = ifelse(is.na(patient),0,patient),
+    cum_patient = cumsum(patient)    
+  )
+
+
+highchart() %>% 
+  hc_title(text="Grafik 2. Jumlah Total Pasien Aktif Covid-19 di Indonesia") %>% 
+  hc_xAxis(categories = daily_cases_indo2$date,type='date') %>% 
+  hc_add_series(name = "recovered", data = (daily_cases_indo2$recovered)) %>%
+  hc_add_series(name = "deaths", data = (daily_cases_indo2$deaths)) %>%
+  hc_add_series(name = "patient", data = (daily_cases_indo2$cum_patient)) %>%
+  hc_chart(type = "column") %>%
+  hc_plotOptions(series = list(stacking = "normal")) %>%
+  hc_legend(reversed = TRUE) %>% 
+  hc_add_theme(hc_theme_google()) 
+```
+
+Hal ini menunjukkan bahwa jumlah pasien covid19 yang harus dirawat baik itu di rumah sakit maupun perawatan mandiri terus bertambah setiap harinya. Hal ini tidak bisa disepelekan karena sangat erat kaitannya dengan kapasitas tenaga medis yang tersedia. Apabila jumlah pasien terus bertambah, sedangkan jumlah tenaga medis stagnan, maka secara rata-rata beban tenaga medis untuk melayani pasien setiap harinya juga terus bertambah. 
+
+# Perbandingan Kasus Terkonfirmasi antar Negara
+
+Data menunjukkan bahwa absolut jumlah penambahan kasus harian di Indonesia relatif kecil jika dibandingkan negara-negara lain seperti Amerika, Rusia, Italy, dan India. Perbandingan jumlah penambahan kasus harian masing-masing negara dapat kita lihat pada grafik berikut:
+
+```{r}
+daily_cases_summary = daily_cases %>%
+  filter(test>0) %>% 
+  group_by(administrative_area_level_1) %>% 
+  summarise(
+    n_obs = n(),
+    median_case = median(confirmed,na.rm = T),
+    median_test = median(test,na.rm = T)
+  ) %>% 
+  rename(
+    "Country" = administrative_area_level_1
+  ) %>% 
+  arrange(desc(median_case)) %>% 
+  filter(n_obs>30) 
+
+to_show = daily_cases_summary %>% head(30) %>% 
+  mutate(
+    y = median_case,
+    color = ifelse(Country=="Indonesia","#2980b9","#f1c40f")
+  )
+
+highchart() %>% 
+  hc_title(text="Median Kasus Terkonfirmasi Covid19 per Hari") %>% 
+  hc_xAxis(categories = to_show$Country,type='date') %>% 
+  hc_add_series(name = "Median Confirmed Case", data = (to_show)) %>%
+  hc_yAxis(type="logarithmic",title=list(enable=T,text="Median Confirmed Case (log scale)")) %>% 
+  hc_chart(type = "column") %>%
+  hc_legend(reversed = TRUE) %>% 
+  hc_add_theme(hc_theme_google())
+```
+
+Median penambahan jumlah kasus baru di Indonesia saat ini hanya sekitar 330 kasus per hari, lebih rendah dibandingkan dengan Amerika (24980 kasus), Rusia (3448 kasus), atau Iran (1565 kasus).
+
+```{r}
+daily_cases_summary2 = daily_cases_summary %>% 
+  mutate(
+    group = ifelse(Country=="Indonesia","Indonesia","Other Country"),
+  ) 
+
+highchart() %>% 
+  hc_title(text="Rasio Konfirmasi Kasus Covid19 Terhadap Jumlah Test") %>% 
+  hc_add_series(daily_cases_summary2, type = "scatter",
+                hcaes(x = median_test, y = median_case,name=Country,group=group)) %>% 
+  hc_xAxis(type="logarithmic",title=list(enable=T,text="Swab Test (log scale)")) %>% 
+  hc_yAxis(type="logarithmic",title=list(enable=T,text="Confirmed Case (log scale)")) %>% 
+  hc_plotOptions(scatter = list(dataLabels = list(format= "{point.name}",
+                    enabled= T))) %>% 
+  hc_legend(reversed = TRUE) %>% 
+  hc_add_theme(hc_theme_google())
+
+```
+
+Jika dibandingkan antara jumlah kasus terkonfirmasi dengan jumlah tes yang dilakukan, terlihat pada grafik diatas bahwa keduanya memiliki hubungan yang kuat dan positif (0.87). 
+Maka, kesimpulannya adalah benar bahwa jumlah kasus terdeteksi di Indonesia cenderung rendah akibat dari kapasitas testing yang rendah pula. Hal ini menjadi tantangan bagi pemerintah agar dapat meningkatkan kapasitas testing yang tersedia guna mendeteksi sebaran covid19 secara lebih luas di masyarakat dan dapat mempercepat tindakan dan kebijakan terkait pemutusan penyebaran covid 19 di Indonesia. 
